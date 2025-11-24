@@ -98,7 +98,7 @@ print(targetIDs) #Target IDs array check
 
 
 
-#Tell motor to go to x=0
+#Tell motor to go to x=0 : CASE 1
 
 MESSAGE = "0" #Initialise message to tell motor to go to x=0
 
@@ -108,13 +108,39 @@ sock.sendto(bytearray(MESSAGE,'utf-8'), # You need this command bytearray to con
 
 #Receive endstop call from simulink
 
+sock.bind((UDP_IP, UDP_PORT))
+print("Listening on IP:", UDP_IP, "Port:", UDP_PORT)
 
+while True:
+    #Read data
+    data, addr = sock.recvfrom(1024) # buffer size is 1024 bytes
+    # Print data
+    print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
+    if data.decode('utf-8') == "ENDSTOP":
+        print("Endstop reached at x=0")
+        break
 
 #Take photo, save ids and positions of codes
 
-#Tell motor to go to x=X
+
+
+
+
+#Tell motor to go to x=X : CASE 2
 
 #Receive end call
+
+sock.bind((UDP_IP, UDP_PORT))
+print("Listening on IP:", UDP_IP, "Port:", UDP_PORT)
+
+while True:
+    #Read data
+    data, addr = sock.recvfrom(1024) # buffer size is 1024 bytes
+    # Print data
+    print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
+    if data.decode('utf-8') == "ENDSTOP":
+        print("Endstop reached at x=0")
+        break
 
 #Take photo, save ids and positions of codes
 
@@ -122,19 +148,65 @@ sock.sendto(bytearray(MESSAGE,'utf-8'), # You need this command bytearray to con
 
 #Make and sort array of target ids and positions
 
-#Tell motor to go to x=0
+#Tell motor to go to x=0 : CASE 1
 
 #Receive endstop call
+sock.bind((UDP_IP, UDP_PORT))
+print("Listening on IP:", UDP_IP, "Port:", UDP_PORT)
 
-#Send motor to position 1
+while True:
+    #Read data
+    data, addr = sock.recvfrom(1024) # buffer size is 1024 bytes
+    # Print data
+    print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
+    if data.decode('utf-8') == "ENDSTOP":
+        print("Endstop reached at x=0")
+        break
+
+#Send motor to position 1 : CASE 3
 
 #Receive end call
+sock.bind((UDP_IP, UDP_PORT))
+print("Listening on IP:", UDP_IP, "Port:", UDP_PORT)
+
+while True:
+    #Read data
+    data, addr = sock.recvfrom(1024) # buffer size is 1024 bytes
+    # Print data
+    print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
+    if data.decode('utf-8') == "ENDSTOP":
+        print("Endstop reached at x=0")
+        break
 
 #shoot laser
 
 #Repeat for all targets
 
+
+
+for i in range(numTargets):
+    #Send motor to position i : CASE 3
+    
+
+    #Receive end call
+    sock.bind((UDP_IP, UDP_PORT))
+    print("Listening on IP:", UDP_IP, "Port:", UDP_PORT)
+
+    while True:
+        #Read data
+        data, addr = sock.recvfrom(1024) # buffer size is 1024 bytes
+        # Print data
+        print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
+        if data.decode('utf-8') == "ENDSTOP":
+            print("Endstop reached at x=0")
+            break
+
+    #shoot laser
 #Receive all targets done message
+
+
+
+
 
 #Return to x=0
 
