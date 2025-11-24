@@ -10,7 +10,7 @@ import time # We will use this to ensure a steady processing rate
 
 
 # Load the camera calibration values
-camera_calibration = np.load('Sample_Calibration.npz')
+camera_calibration = np.load('Calibration.npz')
 CM=camera_calibration['CM'] #camera matrix
 dist_coef=camera_calibration['dist_coef']# distortion coefficients from the camera
 
@@ -23,14 +23,38 @@ parameters = aruco.DetectorParameters()
 processing_period = 0.25
 
 # Create two OpenCV named windows
-cv2.namedWindow("Frame", cv2.WINDOW_AUTOSIZE)
-cv2.namedWindow("Gray", cv2.WINDOW_AUTOSIZE)
+cv2.namedWindow("Frame", cv2.WINDOW_NORMAL)
+# cv2.namedWindow("Gray", cv2.WINDOW_AUTOSIZE)
 
 # Position the windows next to each other
-cv2.moveWindow("Gray", 640, 100)
+# cv2.moveWindow("Gray", 640, 100)
 cv2.moveWindow("Frame", 0, 100)
 # Start capturing video
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
+# Try to set the camera to its maximum supported resolution for the largest field of view
+def set_max_resolution(cap):
+    # List of common high resolutions (width, height)
+    common_resolutions = [
+        (3840, 2160), # 4K
+        (2560, 1440), # QHD
+        (1920, 1080), # Full HD
+        (1280, 720),  # HD
+        (1024, 576),
+        (800, 600),
+        (640, 480)
+    ]
+    for width, height in common_resolutions:
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        actual_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        if int(actual_width) == width and int(actual_height) == height:
+            print(f"Camera resolution set to: {width}x{height}")
+            return (width, height)
+    print("Could not set a high resolution, using default.")
+    return (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+
+set_max_resolution(cap)
 
 # Set the starting time
 start_time = time.time()
@@ -45,7 +69,7 @@ while True:
 
     # Convert frame to grayscale
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    cv2.imshow('gray-image', gray)
+    # cv2.imshow('gray-image', gray)
 
     # Detect markers
     corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
