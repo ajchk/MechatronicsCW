@@ -4,6 +4,30 @@ import numpy as np
 import time
 import socket
 
+#Setup UDP communication parameters
+UDP_IP_SEND = "138.38.228.99"
+UDP_IP_RECEIVE = "172.26.109.96" #LOUCA'S LAPTOP IP
+UDP_PORT = 25000
+
+# Create the socket for the UDP communication
+
+# Create separate sockets for sending and receiving
+sock_send = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock_recv = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock_recv.bind((UDP_IP_RECEIVE, UDP_PORT))
+sock_recv.setblocking(False)  # Non-blocking mode
+print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT)
+
+#Prompt user for number of targets, initialise array to hold target IDs
+numTargets = input("How many targets are there?")
+targetIDs = np.zeros(int(numTargets))
+
+# Get target IDs from user
+for i in range(int(numTargets)):
+    targetIDs[i] = int(input("Enter the ID of target " + str(i+1) + ": "))
+    
+print(targetIDs) #Target IDs array check
+
 #------CAMERA BULLSHIT------
 # Load the camera calibration values
 camera_calibration = np.load('Calibration.npz')
@@ -56,6 +80,35 @@ while True:
 
     # Display the resulting frame
     cv2.imshow('Frame', frame)
+
+    # Non-blocking UDP receive
+    try:
+        data, addr = sock_recv.recvfrom(1024)
+        print ("received message:", data.decode('utf-8'))
+        if data:
+        #if data.decode('utf-8') == "ENDSTOP":
+            print("Endstop reached at x=0")
+            # --- Take photo and save ArUco IDs ---
+            ret, frame = cap.read()
+            if ret:
+                import datetime
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                img_filename = f"photo_{timestamp}.png"
+                cv2.imwrite(img_filename, frame)
+                print(f"Photo taken and saved as {img_filename}")
+                corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+                if ids is not None:
+                    print(f"Detected ArUco IDs: {ids.flatten().tolist()}")
+                    with open(f"aruco_ids_{timestamp}.txt", "w") as f:
+                        f.write(",".join(map(str, ids.flatten().tolist())))
+                else:
+                    print("No ArUco markers detected in the photo.")
+            else:
+                print("No ArUco markers detected in the photo.")
+            break
+    except BlockingIOError:
+        pass
+    
 
     # Break the loop on 'q' key press
     if cv2.waitKey(1) & 0xFF == ord('q'):
