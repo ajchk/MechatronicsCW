@@ -1,14 +1,10 @@
-# This script is an entry point to the Aruco marker detection and pose estimation.
-# It uses the camera calibration values to estimate the pose of the markers.
-# The script will display the original image and the image with the detected markers and their pose.
-# It is using the OpenCV library 4.10+ which has the latest Aruco functions
-
 import cv2
 import cv2.aruco as aruco
 import numpy as np
-import time # We will use this to ensure a steady processing rate
+import time
+import socket
 
-
+#------CAMERA BULLSHIT------
 # Load the camera calibration values
 camera_calibration = np.load('Calibration.npz')
 CM=camera_calibration['CM'] #camera matrix
@@ -22,39 +18,10 @@ parameters = aruco.DetectorParameters()
 # Define a processing rate
 processing_period = 0.25
 
-# Create two OpenCV named windows
 cv2.namedWindow("Frame", cv2.WINDOW_NORMAL)
-# cv2.namedWindow("Gray", cv2.WINDOW_AUTOSIZE)
-
-# Position the windows next to each other
-# cv2.moveWindow("Gray", 640, 100)
-cv2.moveWindow("Frame", 0, 100)
-# Start capturing video
-cap = cv2.VideoCapture(1)
-# Try to set the camera to its maximum supported resolution for the largest field of view
-def set_max_resolution(cap):
-    # List of common high resolutions (width, height)
-    common_resolutions = [
-        #(3840, 2160), # 4K
-        #(2560, 1440), # QHD
-        #(1920, 1080), # Full HD
-        (1280, 720),  # HD
-        (1024, 576),
-        (800, 600),
-        (640, 480)
-    ]
-    for width, height in common_resolutions:
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-        actual_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        if int(actual_width) == width and int(actual_height) == height:
-            print(f"Camera resolution set to: {width}x{height}")
-            return (width, height)
-    print("Could not set a high resolution, using default.")
-    return (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-
-set_max_resolution(cap)
+cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 # Set the starting time
 start_time = time.time()
@@ -67,12 +34,9 @@ while True:
         print("Can't receive frame (stream end?). Exiting ...")
         break
 
-    # Convert frame to grayscale
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    # cv2.imshow('gray-image', gray)
 
     # Detect markers
-    corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+    corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
 
     # If markers are detected
     if ids is not None:
@@ -109,3 +73,35 @@ while True:
 # When everything is done, release the capture and close windows
 cap.release()
 cv2.destroyAllWindows()
+
+
+#-------------------------------
+
+#Setup UDP communication parameters
+UDP_IP = "138.38.226.238"
+UDP_PORT = 25000
+
+# Create the socket for the UDP communication
+sock = socket.socket(socket.AF_INET,    # Family of addresses, in this case IP type 
+                     socket.SOCK_DGRAM) # What protocol to use, in this case UDP (datagram)
+
+
+#Prompt user for number of targets, initialise array to hold target IDs
+numTargets = input("How many targets are there?")
+targetIDs = np.zeros(int(numTargets))
+
+# Get target IDs from user
+for i in range(int(numTargets)):
+    targetIDs[i] = int(input("Enter the ID of target " + str(i+1) + ": "))
+    
+print(targetIDs) #Target IDs array check
+
+
+MESSAGE = "0" #Initialise message to tell motor to go to x=0
+
+# Send the message over the UDP socket. Not checking if it is done
+sock.sendto(bytearray(MESSAGE,'utf-8'), # You need this command bytearray to convert the string to Bytes (utf-8 = unit8)
+            (UDP_IP, UDP_PORT))
+
+
+
