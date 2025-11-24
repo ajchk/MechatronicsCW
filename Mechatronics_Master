@@ -97,11 +97,44 @@ for i in range(int(numTargets)):
 print(targetIDs) #Target IDs array check
 
 
+
+#Tell motor to go to x=0
+
 MESSAGE = "0" #Initialise message to tell motor to go to x=0
 
 # Send the message over the UDP socket. Not checking if it is done
 sock.sendto(bytearray(MESSAGE,'utf-8'), # You need this command bytearray to convert the string to Bytes (utf-8 = unit8)
             (UDP_IP, UDP_PORT))
 
+#Receive endstop call from simulink
 
+
+
+#Take photo, save ids and positions of codes
+
+#Tell motor to go to x=X
+
+#Receive end call
+
+#Take photo, save ids and positions of codes
+
+#Do maths to calculate target positions
+
+#Make and sort array of target ids and positions
+
+#Tell motor to go to x=0
+
+#Receive endstop call
+
+#Send motor to position 1
+
+#Receive end call
+
+#shoot laser
+
+#Repeat for all targets
+
+#Receive all targets done message
+
+#Return to x=0
 
