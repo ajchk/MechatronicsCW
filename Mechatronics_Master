@@ -117,10 +117,52 @@ while True:
     # Print data
     print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
     if data.decode('utf-8') == "ENDSTOP":
+
         print("Endstop reached at x=0")
+        # --- Take photo and save ArUco IDs ---
+        ret, frame = cap.read()
+        if ret:
+            # Save the captured image
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            img_filename = f"photo_{timestamp}.png"
+            cv2.imwrite(img_filename, frame)
+            print(f"Photo taken and saved as {img_filename}")
+
+            # Detect ArUco markers in the captured image
+            corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+            if ids is not None:
+                print(f"Detected ArUco IDs: {ids.flatten().tolist()}")
+                # Optionally, save IDs to a file
+                with open(f"aruco_ids_{timestamp}.txt", "w") as f:
+                    f.write(",".join(map(str, ids.flatten().tolist())))
+            else:
+                print("No ArUco markers detected in the photo.")
+        else:
+            print("Failed to capture image from camera.")
         break
 
-#Take photo, save ids and positions of codes
+# --- Take photo and save ArUco IDs ---
+ret, frame = cap.read()
+if ret:
+    # Save the captured image
+    import datetime
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    img_filename = f"photo_{timestamp}.png"
+    cv2.imwrite(img_filename, frame)
+    print(f"Photo taken and saved as {img_filename}")
+
+    # Detect ArUco markers in the captured image
+    corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+    if ids is not None:
+        print(f"Detected ArUco IDs: {ids.flatten().tolist()}")
+        # Optionally, save IDs to a file
+        with open(f"aruco_ids_{timestamp}.txt", "w") as f:
+            f.write(",".join(map(str, ids.flatten().tolist())))
+    else:
+        print("No ArUco markers detected in the photo.")
+else:
+    print("Failed to capture image from camera.")
 
 
 
