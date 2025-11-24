@@ -78,7 +78,8 @@ cv2.destroyAllWindows()
 #-------------------------------
 
 #Setup UDP communication parameters
-UDP_IP = "138.38.226.238"
+UDP_IP_SEND = "138.38.226.238"
+UDP_IP_RECEIVE = "172.26.228.242" #ALEX'S LAPTOP IP
 UDP_PORT = 25000
 
 # Create the socket for the UDP communication
@@ -104,12 +105,12 @@ MESSAGE = "0" #Initialise message to tell motor to go to x=0
 
 # Send the message over the UDP socket. Not checking if it is done
 sock.sendto(bytearray(MESSAGE,'utf-8'), # You need this command bytearray to convert the string to Bytes (utf-8 = unit8)
-            (UDP_IP, UDP_PORT))
+            (UDP_IP_SEND, UDP_PORT))
 
 #Receive endstop call from simulink
 
-sock.bind((UDP_IP, UDP_PORT))
-print("Listening on IP:", UDP_IP, "Port:", UDP_PORT)
+sock.bind((UDP_IP_RECEIVE, UDP_PORT))
+print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT)
 
 while True:
     #Read data
@@ -130,8 +131,8 @@ while True:
 
 #Receive end call
 
-sock.bind((UDP_IP, UDP_PORT))
-print("Listening on IP:", UDP_IP, "Port:", UDP_PORT)
+sock.bind((UDP_IP_RECEIVE, UDP_PORT))
+print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT)
 
 while True:
     #Read data
@@ -151,7 +152,7 @@ while True:
 #Tell motor to go to x=0 : CASE 1
 
 #Receive endstop call
-sock.bind((UDP_IP, UDP_PORT))
+sock.bind((UDP_IP_RECEIVE, UDP_PORT))
 print("Listening on IP:", UDP_IP, "Port:", UDP_PORT)
 
 while True:
@@ -166,8 +167,8 @@ while True:
 #Send motor to position 1 : CASE 3
 
 #Receive end call
-sock.bind((UDP_IP, UDP_PORT))
-print("Listening on IP:", UDP_IP, "Port:", UDP_PORT)
+sock.bind((UDP_IP_RECEIVE, UDP_PORT))
+print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT)
 
 while True:
     #Read data
@@ -186,11 +187,11 @@ while True:
 
 for i in range(numTargets):
     #Send motor to position i : CASE 3
-    
+
 
     #Receive end call
-    sock.bind((UDP_IP, UDP_PORT))
-    print("Listening on IP:", UDP_IP, "Port:", UDP_PORT)
+    sock.bind((UDP_IP_RECEIVE, UDP_PORT))
+    print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT)
 
     while True:
         #Read data
