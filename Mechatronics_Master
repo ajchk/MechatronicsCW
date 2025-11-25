@@ -48,9 +48,9 @@ parameters = aruco.DetectorParameters()
 processing_period = 0.25
 
 cv2.namedWindow("Frame", cv2.WINDOW_NORMAL)
-cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+cap = cv2.VideoCapture(1)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1280)
 
 # Set the starting time
 start_time = time.time()
@@ -157,7 +157,7 @@ print(targetIDs) #Target IDs array check
 
  """
 
-#Tell motor to go to x=0 : CASE 1
+#Tell motor to go to x=X : CASE 1
 
 # Send a UDP message to the Raspberry Pi after getting target IDs
 message = "2" #Initialise message to tell motor to go to x=0
@@ -173,17 +173,70 @@ sock_send.sendto(bytearray(MESSAGE,'utf-8'), # You need this command bytearray t
 
 #Receive endstop call from simulink
 
-sock_recv.bind((UDP_IP_RECEIVE, UDP_PORT))
-print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT)
+""" sock_recv.bind((UDP_IP_RECEIVE, UDP_PORT))
+print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT) """
 
+""" # Load the camera calibration values
+camera_calibration = np.load('Calibration.npz')
+CM=camera_calibration['CM'] #camera matrix
+dist_coef=camera_calibration['dist_coef']# distortion coefficients from the camera
+
+# Define the ArUco dictionary and parameters
+marker_size = 40
+aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+parameters = aruco.DetectorParameters()
+
+# Define a processing rate
+processing_period = 0.25 """
+
+cv2.namedWindow("Frame", cv2.WINDOW_NORMAL)
+cap = cv2.VideoCapture(1)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1280)
+
+# Set the starting time
+start_time = time.time()
+fps = 0
+
+""" while True:
+    # Capture frame-by-frame
+    ret, frame = cap.read()
+    if not ret:
+        print("Can't receive frame (stream end?). Exiting ...")
+        break
+
+
+    # Detect markers
+    corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+
+    # If markers are detected
+    if ids is not None:
+        # Draw detected markers
+        frame = aruco.drawDetectedMarkers(frame, corners, ids)
+
+        # Estimate pose of each marker
+        rvecs, tvecs, _ = aruco.estimatePoseSingleMarkers(corners, marker_size, CM, dist_coef)
+
+        for rvec, tvec in zip(rvecs, tvecs):
+            # Draw axis for each marker
+            frame = cv2.drawFrameAxes(frame, CM, dist_coef, rvec, tvec, 100)
+
+    # Add the frame rate to the image
+    cv2.putText(frame, f"CAMERA FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.putText(frame, f"PROCESSING FPS: {1/processing_period:.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+    # Display the resulting frame
+    cv2.imshow('Frame', frame)
+ """
+""" # Non blocking UDP receive # 
 while True:
     #Read data
     data, addr = sock_recv.recvfrom(1024) # buffer size is 1024 bytes
     # Print data
     print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
-    if data.decode('utf-8') == "ENDSTOP":
+    if data.decode('utf-8') == "reached far end":
 
-        print("Endstop reached at x=0")
+        print("Endstop reached at x=X")
         # --- Take photo and save ArUco IDs ---
         ret, frame = cap.read()
         if ret:
@@ -205,7 +258,78 @@ while True:
                 print("No ArUco markers detected in the photo.")
         else:
             print("Failed to capture image from camera.")
+        break """
+while True:
+    # Capture frame-by-frame
+    ret, frame = cap.read()
+    if not ret:
+        print("Can't receive frame (stream end?). Exiting ...")
         break
+
+
+    # Detect markers
+    corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+
+    # If markers are detected
+    if ids is not None:
+        # Draw detected markers
+        frame = aruco.drawDetectedMarkers(frame, corners, ids)
+
+        # Estimate pose of each marker
+        rvecs, tvecs, _ = aruco.estimatePoseSingleMarkers(corners, marker_size, CM, dist_coef)
+
+        for rvec, tvec in zip(rvecs, tvecs):
+            # Draw axis for each marker
+            frame = cv2.drawFrameAxes(frame, CM, dist_coef, rvec, tvec, 100)
+
+    # Add the frame rate to the image
+    cv2.putText(frame, f"CAMERA FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.putText(frame, f"PROCESSING FPS: {1/processing_period:.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+    # Display the resulting frame
+    cv2.imshow('Frame', frame)
+
+    # Non-blocking UDP receive
+    try:
+        data, addr = sock_recv.recvfrom(1024)
+        print ("received message:", data.decode('utf-8'))
+        if data:
+        #if data.decode('utf-8') == "ENDSTOP":
+            print("Endstop reached at x=0")
+            # --- Take photo and save ArUco IDs ---
+            ret, frame = cap.read()
+            if ret:
+                import datetime
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                img_filename = f"photo_{timestamp}.png"
+                cv2.imwrite(img_filename, frame)
+                print(f"Photo taken and saved as {img_filename}")
+                corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+                if ids is not None:
+                    print(f"Detected ArUco IDs: {ids.flatten().tolist()}")
+                    with open(f"aruco_ids_{timestamp}.txt", "w") as f:
+                        f.write(",".join(map(str, ids.flatten().tolist())))
+                else:
+                    print("No ArUco markers detected in the photo.")
+            else:
+                print("No ArUco markers detected in the photo.")
+            break
+    except BlockingIOError:
+        pass
+    
+
+    # Break the loop on 'q' key press
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+    # Ensure a steady processing rate
+    elapsed_time = time.time() - start_time
+    fps = 1 / elapsed_time
+    if elapsed_time < processing_period:
+        time.sleep(processing_period - elapsed_time)
+    start_time = time.time()
+
+
 
 # --- Take photo and save ArUco IDs ---
 ret, frame = cap.read()
@@ -233,29 +357,139 @@ else:
 
 
 
-#Tell motor to go to x=X : CASE 2
+#Tell motor to return back to x=0 : CASE 3
 
 #Receive end call
 
-sock_recv.bind((UDP_IP_RECEIVE, UDP_PORT))
-print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT)
+""" sock_recv.bind((UDP_IP_RECEIVE, UDP_PORT))
+print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT) """
+
+# Send a UDP message to the Raspberry Pi after getting target IDs
+message = "3" #Initialise message to tell motor to go back to x=0
+sock_send.sendto(message.encode(), (UDP_IP_SEND, UDP_PORT))
+print(message)
+
+
+x_pos_trial = np.array([1945,2001,5000,6767,0,0,0,0],dtype=np.float64) #Example positions for targets
+x_pos_trial = x_pos_trial.tobytes() #Convert to bytes for sending over UDP
+sock_send.sendto((x_pos_trial), (UDP_IP_SEND, 18000))
+print(message)
+
+# Send a UDP message to the Raspberry Pi after getting target IDs
+message = "4" # Telling RPi that x pos has been sent 
+sock_send.sendto(message.encode(), (UDP_IP_SEND, UDP_PORT))
+print(message)
+
+
+data, addr = sock_recv.recvfrom(1024)
+print ("received message:", data.decode('utf-8'))
+if data:
+#if data.decode('utf-8') == "ENDSTOP":
+    print("Endstop reached at x=0")
+
+
+
+""" 
+cv2.namedWindow("Frame", cv2.WINDOW_NORMAL)
+cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+# Set the starting time
+start_time = time.time()
+fps = 0
+
+while True:
+    # Capture frame-by-frame
+    ret, frame = cap.read()
+    if not ret:
+        print("Can't receive frame (stream end?). Exiting ...")
+        break
+
+
+    # Detect markers
+    corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+
+    # If markers are detected
+    if ids is not None:
+        # Draw detected markers
+        frame = aruco.drawDetectedMarkers(frame, corners, ids)
+
+        # Estimate pose of each marker
+        rvecs, tvecs, _ = aruco.estimatePoseSingleMarkers(corners, marker_size, CM, dist_coef)
+
+        for rvec, tvec in zip(rvecs, tvecs):
+            # Draw axis for each marker
+            frame = cv2.drawFrameAxes(frame, CM, dist_coef, rvec, tvec, 100)
+
+    # Add the frame rate to the image
+    cv2.putText(frame, f"CAMERA FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.putText(frame, f"PROCESSING FPS: {1/processing_period:.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+    # Display the resulting frame
+    cv2.imshow('Frame', frame)
 
 while True:
     #Read data
     data, addr = sock_recv.recvfrom(1024) # buffer size is 1024 bytes
     # Print data
     print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
-    if data.decode('utf-8') == "ENDSTOP":
-        print("Endstop reached at x=0")
+    if data.decode('utf-8') == "reached far end:
+        print("Endstop reached at x=X")
         break
 
+    # Non-blocking UDP receive
+    try:
+        data, addr = sock_recv.recvfrom(1024)
+        print ("received message:", data.decode('utf-8'))
+        if data:
+        #if data.decode('utf-8') == "ENDSTOP":
+            print("Endstop reached at x=X")
+            # --- Take photo and save ArUco IDs ---
+            ret, frame = cap.read()
+            if ret:
+                import datetime
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                img_filename = f"photo_{timestamp}.png"
+                cv2.imwrite(img_filename, frame)
+                print(f"Photo taken and saved as {img_filename}")
+                corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+                if ids is not None:
+                    print(f"Detected ArUco IDs: {ids.flatten().tolist()}")
+                    with open(f"aruco_ids_{timestamp}.txt", "w") as f:
+                        f.write(",".join(map(str, ids.flatten().tolist())))
+                else:
+                    print("No ArUco markers detected in the photo.")
+            else:
+                print("No ArUco markers detected in the photo.")
+            break
+    except BlockingIOError:
+        pass
+    
+
+    # Break the loop on 'q' key press
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+    # Ensure a steady processing rate
+    elapsed_time = time.time() - start_time
+    fps = 1 / elapsed_time
+    if elapsed_time < processing_period:
+        time.sleep(processing_period - elapsed_time)
+    start_time = time.time()
+
+
+# When everything is done, release the capture and close windows
+    cap.release()
+    cv2.destroyAllWindows()
+ """
 #Take photo, save ids and positions of codes
 
 #Do maths to calculate target positions
 
 #Make and sort array of target ids and positions
 
-#Tell motor to go to x=0 : CASE 1
+""" #Tell motor to go to x=0 : CASE 1
 
 #Receive endstop call
 sock_recv.bind((UDP_IP_RECEIVE, UDP_PORT))
@@ -268,7 +502,7 @@ while True:
     print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
     if data.decode('utf-8') == "ENDSTOP":
         print("Endstop reached at x=0")
-        break
+        break """
 
 #Send motor to position 1 : CASE 3
 
