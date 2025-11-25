@@ -267,11 +267,12 @@ for i, x_current in enumerate(x_positions_0):
     steps = max(steps_min, min(steps, steps_max))
     stepsMatrix[i] = steps """
 
-x0 = 220   # left-most marker pixel (adjust as needed)
-xX = 750   # right-most marker pixel (adjust as needed)
+x0 = 50   # left-most marker pixel (adjust as needed)
+x_mid = 280  # middle marker pixel (adjust as needed)
+xX = 900   # right-most marker pixel (adjust as needed)
 steps_min = 0
 steps_max = 8500
-
+""" 
 for i in range(len(x_positions_0)):
     x_current = x_positions_0[i]
     # Linear mapping: x0 -> 0 steps, xX -> 8500 steps
@@ -284,9 +285,24 @@ for i in range(len(x_positions_0)):
     elif steps > steps_max:
         stepsMatrix[i] = steps_max
     else:
-        stepsMatrix[i] = steps
+        stepsMatrix[i] = steps """
 
-"""  #gpt attempt 1
+""" # Example calibration points
+calib_pixels = np.array([x0, x_mid, xX])
+calib_steps = np.array([0, 4250, 8500])
+
+# Fit a 2nd order polynomial: steps = a*x^2 + b*x + c
+poly_coeffs = np.polyfit(calib_pixels, calib_steps, 2)
+
+def pixel_to_steps(x):
+    return np.polyval(poly_coeffs, x)
+
+for i, x_current in enumerate(x_positions_0):
+    steps = pixel_to_steps(x_current)
+    steps = max(steps_min, min(steps, steps_max))
+    stepsMatrix[i] = steps
+ """
+ #gpt attempt 1
 for i in range(len(x_positions_0)):
     x_current = x_positions_0[i]
     fraction = (x_current - x_mid) / (xX - x0)
@@ -299,7 +315,7 @@ for i in range(len(x_positions_0)):
     elif steps > 8500:
         stepsMatrix[i] = 8500
     else:
-        stepsMatrix[i] = steps """
+        stepsMatrix[i] = steps
 
 
 """ print(f"Move {steps:.0f} steps from x=0 to reach this position.") """
