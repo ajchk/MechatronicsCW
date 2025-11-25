@@ -3,6 +3,7 @@ import cv2.aruco as aruco
 import numpy as np
 import time
 import socket
+import math
 
 #Setup UDP communication parameters
 UDP_IP_SEND = "138.38.228.99"
@@ -33,12 +34,12 @@ print(message)
 
                     #------CAMERA CALIBRATION------
 # Load the camera calibration values
-camera_calibration = np.load('Calibration.npz')
+camera_calibration = np.load('Calibration1.npz')
 CM=camera_calibration['CM'] #camera matrix
 dist_coef=camera_calibration['dist_coef']# distortion coefficients from the camera
 
 # Define the ArUco dictionary and parameters
-marker_size = 90
+marker_size = 83
 aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
 parameters = aruco.DetectorParameters()
 
@@ -53,80 +54,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 # Set the starting time
 start_time = time.time()
 fps = 0
-""" 
-while True:
-    # Capture frame-by-frame
-    ret, frame = cap.read()
-    if not ret:
-        print("Can't receive frame (stream end?). Exiting ...")
-        break
 
-    # Detect markers
-    corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
-
-    # If markers are detected
-    if ids is not None:
-        # Draw detected markers
-        frame = aruco.drawDetectedMarkers(frame, corners, ids)
-
-        # Estimate pose of each marker
-        rvecs, tvecs, _ = aruco.estimatePoseSingleMarkers(corners, marker_size, CM, dist_coef)
-
-        for rvec, tvec in zip(rvecs, tvecs):
-            # Draw axis for each marker
-            frame = cv2.drawFrameAxes(frame, CM, dist_coef, rvec, tvec, 100)
-
-    # Add the frame rate to the image
-    cv2.putText(frame, f"CAMERA FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-    cv2.putText(frame, f"PROCESSING FPS: {1/processing_period:.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-    # Display the resulting frame
-    cv2.imshow('Frame', frame)
-
-    # Non-blocking UDP receive
-    try:
-        data, addr = sock_recv.recvfrom(1024)
-        print ("received message:", data.decode('utf-8'))
-        if data:
-        #if data.decode('utf-8') == "ENDSTOP":
-            print("Endstop reached at x=0")
-            # --- Take photo and save ArUco IDs ---
-            ret, frame = cap.read()
-            if ret:
-                import datetime
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                img_filename = f"photo_{timestamp}.png"
-                cv2.imwrite(img_filename, frame)
-                print(f"Photo taken and saved as {img_filename}")
-                corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
-                if ids is not None:
-                    print(f"Detected ArUco IDs: {ids.flatten().tolist()}")
-                    with open(f"aruco_ids_{timestamp}.txt", "w") as f:
-                        f.write(",".join(map(str, ids.flatten().tolist())))
-                else:
-                    print("No ArUco markers detected in the photo.")
-            else:
-                print("No ArUco markers detected in the photo.")
-            break
-    except BlockingIOError:
-        pass
-    
-
-    # Break the loop on 'q' key press
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-    # Ensure a steady processing rate
-    elapsed_time = time.time() - start_time
-    fps = 1 / elapsed_time
-    if elapsed_time < processing_period:
-        time.sleep(processing_period - elapsed_time)
-    start_time = time.time()
-
-# When everything is done, release the capture and close windows
-cap.release()
-cv2.destroyAllWindows()
- """
           # ------Tell motor to go to x=X : CASE 1------ #
 
 # Send a UDP message to the Raspberry Pi after getting target IDs
@@ -240,8 +168,7 @@ else:
 
 #Receive end call
 
-""" sock_recv.bind((UDP_IP_RECEIVE, UDP_PORT))
-print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT) """
+
 
 # Send a UDP message to the Raspberry Pi after getting target IDs
 message = "3" #Initialise message to tell motor to go back to x=0
@@ -256,6 +183,7 @@ def get_aruco_positions_from_image(image_path, aruco_dict, parameters):
     if img is None:
         print(f"Failed to load image: {image_path}")
         return []
+    img = cv2.undistort(img, CM, dist_coef)
     corners, ids, _ = aruco.detectMarkers(img, aruco_dict, parameters=parameters)
     x_positions = []
     if ids is not None and len(corners) > 0:
@@ -274,30 +202,118 @@ image_path = "image_at_xX.png"
 # Get x positions from both images
 x_positions_0  = get_aruco_positions_from_image(image_path, aruco_dict, parameters)
 
+print(x_positions_0)
 """ bs_x =  """
 
 # Assume you have x0 and xX from calibration images
-x0 = 0
-x_mid = 240  # x-position at x=X
-xX = 510
+""" x0 = 180
+x_mid = 420  # x-position at x=X
+xX = 820
 
+steps_min = 0
+steps_max = 8500
+
+ """
 stepsMatrix = np.zeros(8, dtype=np.float64)
 
-# For a new image:
+""" #LET HIM COOK
+for i in range(len(x_positions_0)):
+    x_current = x_positions_0[i]
+    # Normalized position in [0, 1]
+    fraction = (x_current - x_min) / (x_max - x_min)
+    # Apply a power to compress the center (try 1.2 to 2.0, tune as needed)
+    fraction_corrected = fraction ** 2.0
+    steps = steps_min + fraction_corrected * (steps_max - steps_min)
+    steps = max(steps_min, min(steps, steps_max))
+    stepsMatrix[i] = steps """
+
+""" # For a new image:
 for i in range(len(x_positions_0)):
 
     x_current = x_positions_0[i]  # x-position from tvec[0][0] or marker center
+    
+     # Linear mapping from x_current to steps
+    fraction = (x_current - x_min) / (x_max - x_min)
+    steps = steps_min + fraction * (steps_max - steps_min)
 
+    # Clamp to valid range
+    steps = max(steps_min, min(steps, steps_max))
+    stepsMatrix[i] = steps """
+
+
+    #Alex attempt
+""" steps = (x_current * 14.1903) - (80*14.1903)
+    if steps < 0:
+        stepsMatrix[i] = 0
+    elif steps > 8500:
+        stepsMatrix[i] = 8500
+    else:
+        stepsMatrix[i] = steps
+ """
+""" # Calibration points (pixel, steps)
+calib_pixels = np.array([80, 390, 700])
+calib_steps = np.array([0, 4250, 8500])
+
+# Fit a 2nd order polynomial: steps = a*x^2 + b*x + c
+poly_coeffs = np.polyfit(calib_pixels, calib_steps, 2)
+
+def pixel_to_steps(x):
+    # Evaluate the polynomial at x
+    return np.polyval(poly_coeffs, x)
+
+for i, x_current in enumerate(x_positions_0):
+    steps = pixel_to_steps(x_current)
+    # Clamp to valid range
+    steps = max(steps_min, min(steps, steps_max))
+    stepsMatrix[i] = steps """
+
+x0 = 220   # left-most marker pixel (adjust as needed)
+xX = 750   # right-most marker pixel (adjust as needed)
+steps_min = 0
+steps_max = 8500
+
+for i in range(len(x_positions_0)):
+    x_current = x_positions_0[i]
+    # Linear mapping: x0 -> 0 steps, xX -> 8500 steps
+    fraction = (x_current - x0) / (xX - x0)
+    steps = steps_min + fraction * (steps_max - steps_min)
+    steps = math.floor(steps)
+    print(steps)
+    if steps < steps_min:
+        stepsMatrix[i] = steps_min
+    elif steps > steps_max:
+        stepsMatrix[i] = steps_max
+    else:
+        stepsMatrix[i] = steps
+
+"""  #gpt attempt 1
+for i in range(len(x_positions_0)):
+    x_current = x_positions_0[i]
     fraction = (x_current - x_mid) / (xX - x0)
     steps = fraction * 8500
+    steps = math.floor(steps)
+    steps = steps+2000
+    print(steps)
+    if steps < 0:
+        stepsMatrix[i] = 1
+    elif steps > 8500:
+        stepsMatrix[i] = 8500
+    else:
+        stepsMatrix[i] = steps """
 
-    stepsMatrix[i] = steps
 
 """ print(f"Move {steps:.0f} steps from x=0 to reach this position.") """
 
-stepsMatrix.sort()
+print(stepsMatrix)
+
+nonzeros = stepsMatrix[stepsMatrix != 0]
+sorted_nonzeros = np.sort(nonzeros)
+zerocount = np.count_nonzero(stepsMatrix == 0)
+stepsMatrix = np.concatenate((sorted_nonzeros, np.zeros(zerocount)))
+
 
 print(stepsMatrix)
+
 
 # Convert arrays to bytes
 stepsMatrix_bytes = np.array(stepsMatrix, dtype=np.int16).tobytes()
@@ -305,9 +321,9 @@ stepsMatrix_bytes = np.array(stepsMatrix, dtype=np.int16).tobytes()
 
 
 # Send to Simulink (replace UDP_IP_SEND and UDP_PORT with your values)
-sock_send.sendto(stepsMatrix_bytes, (UDP_IP_SEND, UDP_PORT))
+sock_send.sendto(stepsMatrix_bytes, (UDP_IP_SEND, 18000))
 
-
+time.sleep(4)
 
 
 """ x_pos_trial = np.array([1945,2001,5000,6767,0,0,0,0],dtype=np.float64) #Example positions for targets
@@ -320,185 +336,3 @@ message = "4" # Telling RPi that x pos has been sent
 sock_send.sendto(message.encode(), (UDP_IP_SEND, UDP_PORT))
 print(message)
 
-""" 
-data, addr = sock_recv.recvfrom(1024)
-print ("received message:", data.decode('utf-8'))
-if data:
-#if data.decode('utf-8') == "ENDSTOP":
-    print("Endstop reached at x=0") """
-
-
-
-""" 
-cv2.namedWindow("Frame", cv2.WINDOW_NORMAL)
-cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-
-# Set the starting time
-start_time = time.time()
-fps = 0
-
-while True:
-    # Capture frame-by-frame
-    ret, frame = cap.read()
-    if not ret:
-        print("Can't receive frame (stream end?). Exiting ...")
-        break
-
-
-    # Detect markers
-    corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
-
-    # If markers are detected
-    if ids is not None:
-        # Draw detected markers
-        frame = aruco.drawDetectedMarkers(frame, corners, ids)
-
-        # Estimate pose of each marker
-        rvecs, tvecs, _ = aruco.estimatePoseSingleMarkers(corners, marker_size, CM, dist_coef)
-
-        for rvec, tvec in zip(rvecs, tvecs):
-            # Draw axis for each marker
-            frame = cv2.drawFrameAxes(frame, CM, dist_coef, rvec, tvec, 100)
-
-    # Add the frame rate to the image
-    cv2.putText(frame, f"CAMERA FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-    cv2.putText(frame, f"PROCESSING FPS: {1/processing_period:.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-    # Display the resulting frame
-    cv2.imshow('Frame', frame)
-
-while True:
-    #Read data
-    data, addr = sock_recv.recvfrom(1024) # buffer size is 1024 bytes
-    # Print data
-    print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
-    if data.decode('utf-8') == "reached far end:
-        print("Endstop reached at x=X")
-        break
-
-    # Non-blocking UDP receive
-    try:
-        data, addr = sock_recv.recvfrom(1024)
-        print ("received message:", data.decode('utf-8'))
-        if data:
-        #if data.decode('utf-8') == "ENDSTOP":
-            print("Endstop reached at x=X")
-            # --- Take photo and save ArUco IDs ---
-            ret, frame = cap.read()
-            if ret:
-                import datetime
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                img_filename = f"photo_{timestamp}.png"
-                cv2.imwrite(img_filename, frame)
-                print(f"Photo taken and saved as {img_filename}")
-                corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
-                if ids is not None:
-                    print(f"Detected ArUco IDs: {ids.flatten().tolist()}")
-                    with open(f"aruco_ids_{timestamp}.txt", "w") as f:
-                        f.write(",".join(map(str, ids.flatten().tolist())))
-                else:
-                    print("No ArUco markers detected in the photo.")
-            else:
-                print("No ArUco markers detected in the photo.")
-            break
-    except BlockingIOError:
-        pass
-    
-
-    # Break the loop on 'q' key press
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-    # Ensure a steady processing rate
-    elapsed_time = time.time() - start_time
-    fps = 1 / elapsed_time
-    if elapsed_time < processing_period:
-        time.sleep(processing_period - elapsed_time)
-    start_time = time.time()
-
-
-# When everything is done, release the capture and close windows
-    cap.release()
-    cv2.destroyAllWindows()
- """
-#Take photo, save ids and positions of codes
-
-#Do maths to calculate target positions
-
-#Make and sort array of target ids and positions
-
-""" #Tell motor to go to x=0 : CASE 1
-
-#Receive endstop call
-sock_recv.bind((UDP_IP_RECEIVE, UDP_PORT))
-print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT)
-
-while True:
-    #Read data
-    data, addr = sock_recv.recvfrom(1024) # buffer size is 1024 bytes
-    # Print data
-    print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
-    if data.decode('utf-8') == "ENDSTOP":
-        print("Endstop reached at x=0")
-        break """
-
-#Send motor to position 1 : CASE 3
-
-#Receive end call
-""" sock_recv.bind((UDP_IP_RECEIVE, UDP_PORT))
-print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT)
-
-while True:
-    #Read data
-    data, addr = sock_recv.recvfrom(1024) # buffer size is 1024 bytes
-    # Print data
-    print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
-    if data.decode('utf-8') == "ENDSTOP":
-        print("Endstop reached at x=0")
-        break
- """
-#shoot laser
-
-#Repeat for all targets
-
-
-
-""" for i in range(numTargets):
-    #Send motor to position i : CASE 3
-
-
-    #Receive end call
-    sock_recv.bind((UDP_IP_RECEIVE, UDP_PORT))
-    print("Listening on IP:", UDP_IP_RECEIVE, "Port:", UDP_PORT)
-
-    while True:
-        #Read data
-        data, addr = sock_recv.recvfrom(1024) # buffer size is 1024 bytes
-        # Print data
-        print ("received message:", data.decode('utf-8')) # As a string (check the ASCII table)
-        if data.decode('utf-8') == "ENDSTOP":
-            print("Endstop reached at x=0")
-            break
-
-    #shoot laser
-#Receive all targets done message
-
-
-# Assume you have x0 and xX from calibration images
-x0 = ...  # x-position at x=0
-xX = ...  # x-position at x=X
-
-# For a new image:
-x_current = ...  # x-position from tvec[0][0] or marker center
-
-fraction = (x_current - x0) / (xX - x0)
-steps = fraction * 8500
-
-print(f"Move {steps:.0f} steps from x=0 to reach this position.")
-
-
-#Return to x=0
-
- """
