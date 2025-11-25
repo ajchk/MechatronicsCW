@@ -178,7 +178,7 @@ print(message)
 time.sleep(2) # Wait for 2 seconds to ensure the motor has time to move
 
 
-def get_aruco_positions_from_image(image_path, aruco_dict, parameters):
+def get_aruco_positions_from_image(image_path, aruco_dict, parameters,targetIDs):
     img = cv2.imread(image_path)
     if img is None:
         print(f"Failed to load image: {image_path}")
@@ -187,20 +187,29 @@ def get_aruco_positions_from_image(image_path, aruco_dict, parameters):
     corners, ids, _ = aruco.detectMarkers(img, aruco_dict, parameters=parameters)
     x_positions = []
     if ids is not None and len(corners) > 0:
-        for c in corners:
+        for idx, marker_id in enumerate(ids.flatten()):
+            if marker_id in targetIDs:
+                c = corners[idx]
+                x_center = int(np.mean(c[0][:, 0]))
+                x_positions.append(x_center)
+        print(f"Filtered ArUco marker center x positions: {x_positions}")
+    else:
+        print("No ArUco marker detected in the image.")
+    return x_positions
+    """ for c in corners:
             # c[0] is the 4x2 array of corners for this marker
             x_center = int(np.mean(c[0][:, 0]))
             x_positions.append(x_center)
         print(f"ArUco marker center x positions: {x_positions}")
     else:
         print("No ArUco marker detected in the image.")
-    return x_positions
+    return x_positions """
 
 # Paths to your saved images
 image_path = "image_at_xX.png"
 
 # Get x positions from both images
-x_positions_0  = get_aruco_positions_from_image(image_path, aruco_dict, parameters)
+x_positions_0  = get_aruco_positions_from_image(image_path, aruco_dict, parameters, targetIDs)
 
 print(x_positions_0)
 """ bs_x =  """
